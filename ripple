@@ -10,33 +10,27 @@
 #   ripple /app/startup.apl
 
 use v5.32;
+use Getopt::Long;
 use IO::Socket::INET;
 
 my $addr = 'localhost:4502';
 my @exprs;
 
-while (@ARGV) {
-    my $arg = shift @ARGV;
-    if ($arg eq '-addr' && @ARGV) {
-        $addr = shift @ARGV;
-    } elsif ($arg eq '-e' && @ARGV) {
-        push @exprs, shift @ARGV;
-    } elsif ($arg !~ /^-/) {
-        open my $fh, '<', $arg or die "Cannot open $arg: $!\n";
-        while (<$fh>) {
-            chomp;
-            s/^\s+//; s/\s+$//;
-            push @exprs, $_ if length;
-        }
-    } else {
-        die "Unknown option: $arg\nUsage: ripple [-addr host:port] [-e expr]... [script.apl]\n";
+GetOptions(
+    'addr=s' => \$addr,
+    'e=s'    => \@exprs,
+) or die "Usage: ripple [-addr host:port] [-e expr]... [script.apl]\n";
+
+for my $file (@ARGV) {
+    open my $fh, '<', $file or die "Cannot open $file: $!\n";
+    while (<$fh>) {
+        s/^\s+//; s/\s+$//;
+        push @exprs, $_ if length;
     }
 }
 
-die "No expressions to execute.\nUsage: ripple [-addr host:port] [-e expr]... [script.apl]\n"
-    unless @exprs;
+if (!@exprs) { die "Usage: ripple [-addr host:port] [-e expr]... [script.apl]\n" }
 
-# Connect
 my $sock = IO::Socket::INET->new(PeerAddr => $addr, Proto => 'tcp', Timeout => 10)
     // die "Cannot connect to $addr: $!\n";
 
@@ -66,7 +60,6 @@ sub wait_for_prompt {
     }
 }
 
-# RIDE handshake
 my $msg = ride_recv();
 die "Expected SupportedProtocols=2, got: $msg\n" unless $msg eq 'SupportedProtocols=2';
 ride_send('SupportedProtocols=2');
@@ -79,8 +72,7 @@ wait_for_prompt();
 
 # Execute
 for my $expr (@exprs) {
-    (my $escaped = $expr) =~ s/\\/\\\\/g;
-    $escaped =~ s/"/\\"/g;
+    (my $escaped = $expr) =~ s/[\\"]/\\$&/g;
     ride_send("[\"Execute\",{\"text\":\"$escaped\\n\",\"trace\":0}]");
     wait_for_prompt();
 }
