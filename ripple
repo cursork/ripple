@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 # ripple — Execute expressions in a Dyalog APL session via the RIDE protocol.
-# Connects, executes expressions from arguments or a script file, disconnects.
+# Connects, executes expressions, disconnects.
 # No dependencies beyond core Perl (IO::Socket::INET).
 # Requires Perl 5.32+ (RHEL 9 baseline).
 #
 # Usage:
-#   ripple [-addr host:port] [-e 'expr'] ... [script.apl]
+#   ripple [-addr host:port] [-e 'expr'] ...
+#   ripple -e "⎕←2+2"
 #   ripple -e "⎕SE.Link.Create '#' '/app/src'" -e "#.Run 'Multi'"
-#   ripple /app/startup.apl
 
 use v5.32;
 use Getopt::Long;
@@ -19,7 +19,7 @@ my @exprs;
 GetOptions(
     'addr=s' => \$addr,
     'e=s'    => \@exprs,
-) or die "Usage: ripple [-addr host:port] [-e expr]... [script.apl]";
+) or die "Usage: ripple [-addr host:port] [-e expr]...";
 
 for my $file (@ARGV) {
     open my $fh, '<', $file or die "Cannot open $file: $!";
@@ -29,7 +29,7 @@ for my $file (@ARGV) {
     }
 }
 
-if (!@exprs) { die "Usage: ripple [-addr host:port] [-e expr]... [script.apl]" }
+if (!@exprs) { die "Usage: ripple [-addr host:port] [-e expr]..." }
 
 my $sock = IO::Socket::INET->new(PeerAddr => $addr, Proto => 'tcp', Timeout => 10)
     // die "Cannot connect to $addr: $!";
@@ -60,9 +60,10 @@ sub wait_for_prompt {
         my $msg = ride_recv();
         $had_error = 1 if $msg =~ /"HadError"/;
         if ($msg =~ /"AppendSessionOutput"/ && $msg =~ /"type"\s*:\s*(\d+)/ && $1 != 14) {
+            my $type = $1;
             if ($msg =~ /"result"\s*:\s*"((?:[^"\\]|\\.)*)"/) {
                 (my $text = $1) =~ s/\\(.)/$1 eq 'n' ? "\n" : $1/ge;
-                print $text;
+                print {$type == 5 ? *STDERR : *STDOUT} $text;
             }
         }
         return if $msg =~ /"SetPromptType"/ && $msg =~ /"type"\s*:\s*([0-9]+)/ && $1 > 0;

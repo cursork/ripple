@@ -1,8 +1,15 @@
 # ripple
 
+My view:
 _My attempt to upset every programming language community I belong to_
 
-RIDE + Perl = Ripple. A minimal client for Dyalog APL's [RIDE](https://github.com/Dyalog/ride) protocol.
+Claude's view:
+_What I will say: the audience for it is maybe 50 people on earth. And half of them will dismiss it because it's Perl._
+
+Claude is probably being kind on the number of interested...
+
+RIDE + Perl = Ripple. A minimal <3KB (before minification and compression)
+client for Dyalog APL's [RIDE](https://github.com/Dyalog/ride) protocol.
 
 Connects to a running Dyalog session, executes expressions, disconnects. One file, no dependencies beyond core Perl.
 
@@ -15,10 +22,12 @@ without a RIDE client of any sort.
 On POSIX and POSIX-ish systems Perl is _ubiquitous_. A small review showed that
 even RHEL 9 comes with Perl 5.32, which is nice and very modern.
 
-The solution: a ~2.5KB RIDE implementation in Perl. As Perl is guaranteed on
+The solution: a tiny RIDE implementation in Perl. As Perl is guaranteed on
 everything but Windows (WSL exists though), and the author knows Perl, it was an
 obvious choice. No installing an untrusted binary; no installation at all. One
 small script.
+
+With minification, it gets to <1KB.
 
 ## Usage
 
@@ -79,16 +88,16 @@ Ripple disconnects. Dyalog keeps running. RIDE stays open for debugging.
 
 ## Requirements
 
-Perl 5.32+ (ships with RHEL 9, Debian 11, Ubuntu 22.04, and anything newer). Uses only `IO::Socket::INET` from core.
+Perl 5.32+ (ships with RHEL 9, Debian 11, Ubuntu 22.04, and anything newer).
+Uses only `IO::Socket::INET` from core.
 
 ## Install
 
-There is no install. `ripple` just works. You may need to `chmod +x` depending
-on your setup.
+There is no install. `ripple` just works. You may need to `chmod +x ripple`.
 
 ## What are these other files?
 
-`ripple-min`, `ripple-packed`, etc are experiments in getting silly about
+Inside `minis`: `ripple-min`, `ripple-packed`, etc are experiments in getting silly about
 minification - **ignore them**. I will decide how best to minify. `minify.pl` is the script used to create them.
 
 If you refuse to ignore, ripple-min.gz is nice. Under 1KB and can be piped in
@@ -100,7 +109,7 @@ gzip -dc ripple-min.gz | perl - -e "⎕←747753"
 
 ## How it works
 
-The RIDE protocol runs over raw TCP with a simple framing format: `[4-byte big-endian length][RIDE + payload]`. Ripple performs the protocol handshake (`SupportedProtocols`, `UsingProtocol`, `Identify`, `Connect`), waits for the interpreter to be ready, then sends `Execute` commands sequentially — waiting for each to complete before sending the next. Then it closes the connection, leaving the Dyalog session running.
+The RIDE protocol runs over raw TCP with a simple framing format: `[4-byte big-endian length][RIDE + payload]`. Ripple performs the protocol handshake (`SupportedProtocols`, `UsingProtocol`, `Identify`, `Connect`), waits for the interpreter to be ready, then sends `Execute` commands sequentially — waiting for each to complete before sending the next. Then it closes the connection, leaving the Dyalog session running and further clients able to connect.
 
 ## Licence
 
