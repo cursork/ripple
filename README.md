@@ -86,6 +86,19 @@ ripple -e "⎕SE.Link.Create '#' '/app/src'" -e "#.Run 'Multi'"
 
 Ripple disconnects. Dyalog keeps running. RIDE stays open for debugging.
 
+## It fits in a QR code
+
+The minified ripple is small enough to encode as a QR code. `minis/ripple-qr.png`
+contains the entire RIDE client:
+
+![ripple QR code](minis/ripple-qr.png)
+
+```sh
+curl -s https://raw.githubusercontent.com/cursork/ripple/main/minis/ripple-qr.png | zbarimg --raw -q - | perl - -e "⎕←747753"
+```
+
+Yes. This works. I am not sorry.
+
 ## Requirements
 
 Perl 5.32+ (ships with RHEL 9, Debian 11, Ubuntu 22.04, and anything newer).
@@ -95,7 +108,11 @@ Uses only `IO::Socket::INET` from core.
 
 There is no install. `ripple` just works. You may need to `chmod +x ripple`.
 
-## What are these other files?
+## How it works
+
+The RIDE protocol runs over raw TCP with a simple framing format: `[4-byte big-endian length][RIDE + payload]`. Ripple performs the protocol handshake (`SupportedProtocols`, `UsingProtocol`, `Identify`, `Connect`), waits for the interpreter to be ready, then sends `Execute` commands sequentially — waiting for each to complete before sending the next. Then it closes the connection, leaving the Dyalog session running and further clients able to connect.
+
+## What are these other files in `minis`?
 
 Inside `minis`: `ripple-min`, `ripple-packed`, etc are experiments in getting silly about
 minification - **ignore them**. I will decide how best to minify. `minify.pl` is the script used to create them.
@@ -106,21 +123,6 @@ to perl (gzip is also POSIX standard):
 ```
 gzip -dc ripple-min.gz | perl - -e "⎕←747753"
 ```
-
-## It fits in a QR code
-
-The minified ripple is small enough to encode as a QR code. `minis/ripple-qr.png`
-contains the entire RIDE client:
-
-![ripple QR code](minis/ripple-qr.png)
-
-```sh
-zbarimg --raw -q ripple-qr.png | perl - -e "⎕←747753"
-```
-
-## How it works
-
-The RIDE protocol runs over raw TCP with a simple framing format: `[4-byte big-endian length][RIDE + payload]`. Ripple performs the protocol handshake (`SupportedProtocols`, `UsingProtocol`, `Identify`, `Connect`), waits for the interpreter to be ready, then sends `Execute` commands sequentially — waiting for each to complete before sending the next. Then it closes the connection, leaving the Dyalog session running and further clients able to connect.
 
 ## Licence
 
