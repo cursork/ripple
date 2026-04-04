@@ -1,0 +1,88 @@
+#!/usr/bin/perl
+# ripple — Execute expressions in a Dyalog APL session via the RIDE protocol.
+# Connects, executes expressions from arguments or a script file, disconnects.
+# No dependencies beyond core Perl (IO::Socket::INET).
+# Requires Perl 5.32+ (RHEL 9 baseline).
+#
+# Usage:
+#   ripple [-addr host:port] [-e 'expr'] ... [script.apl]
+#   ripple -e "⎕SE.Link.Create '#' '/app/src'" -e "#.Run 'Multi'"
+#   ripple /app/startup.apl
+
+use v5.32;
+use IO::Socket::INET;
+
+my $addr = 'localhost:4502';
+my @exprs;
+
+while (@ARGV) {
+    my $arg = shift @ARGV;
+    if ($arg eq '-addr' && @ARGV) {
+        $addr = shift @ARGV;
+    } elsif ($arg eq '-e' && @ARGV) {
+        push @exprs, shift @ARGV;
+    } elsif ($arg !~ /^-/) {
+        open my $fh, '<', $arg or die "Cannot open $arg: $!\n";
+        while (<$fh>) {
+            chomp;
+            s/^\s+//; s/\s+$//;
+            push @exprs, $_ if length;
+        }
+    } else {
+        die "Unknown option: $arg\nUsage: ripple [-addr host:port] [-e expr]... [script.apl]\n";
+    }
+}
+
+die "No expressions to execute.\nUsage: ripple [-addr host:port] [-e expr]... [script.apl]\n"
+    unless @exprs;
+
+# Connect
+my $sock = IO::Socket::INET->new(PeerAddr => $addr, Proto => 'tcp', Timeout => 10)
+    // die "Cannot connect to $addr: $!\n";
+
+# RIDE framing: [4-byte BE length (includes itself)] [payload]
+sub ride_send {
+    my $data = "RIDE" . $_[0];
+    print $sock pack('N', length($data) + 4) . $data;
+}
+
+sub ride_recv {
+    read($sock, my $buf, 4) == 4 or die "Connection closed\n";
+    my $len = unpack('N', $buf);
+    die "Invalid length: $len\n" if $len < 8 || $len > 10_000_000;
+    my $payload = '';
+    while (length($payload) < $len - 4) {
+        read($sock, my $chunk, $len - 4 - length($payload)) or die "Connection closed\n";
+        $payload .= $chunk;
+    }
+    $payload =~ s/^RIDE//;
+    return $payload;
+}
+
+sub wait_for_prompt {
+    while (1) {
+        my $msg = ride_recv();
+        return if $msg =~ /"SetPromptType"/ && $msg =~ /"type"\s*:\s*([0-9]+)/ && $1 > 0;
+    }
+}
+
+# RIDE handshake
+my $msg = ride_recv();
+die "Expected SupportedProtocols=2, got: $msg\n" unless $msg eq 'SupportedProtocols=2';
+ride_send('SupportedProtocols=2');
+ride_send('UsingProtocol=2');
+$msg = ride_recv();
+die "Expected UsingProtocol=2, got: $msg\n" unless $msg eq 'UsingProtocol=2';
+ride_send('["Identify",{"apiVersion":1,"identity":1}]');
+ride_send('["Connect",{"remoteId":2}]');
+wait_for_prompt();
+
+# Execute
+for my $expr (@exprs) {
+    (my $escaped = $expr) =~ s/\\/\\\\/g;
+    $escaped =~ s/"/\\"/g;
+    ride_send("[\"Execute\",{\"text\":\"$escaped\\n\",\"trace\":0}]");
+    wait_for_prompt();
+}
+
+close $sock;
