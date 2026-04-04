@@ -53,9 +53,12 @@ sub ride_recv {
     return $payload;
 }
 
+my $had_error = 0;
+
 sub wait_for_prompt {
     while (1) {
         my $msg = ride_recv();
+        $had_error = 1 if $msg =~ /"HadError"/;
         if ($msg =~ /"AppendSessionOutput"/ && $msg =~ /"type"\s*:\s*(\d+)/ && $1 != 14) {
             if ($msg =~ /"result"\s*:\s*"((?:[^"\\]|\\.)*)"/) {
                 (my $text = $1) =~ s/\\(.)/$1 eq 'n' ? "\n" : $1/ge;
@@ -84,3 +87,4 @@ for my $expr (@exprs) {
 }
 
 close $sock;
+exit($had_error ? 1 : 0);

@@ -1,5 +1,7 @@
 # ripple
 
+_My attempt to upset every programming language community I belong to_
+
 RIDE + Perl = Ripple. A minimal client for Dyalog APL's [RIDE](https://github.com/Dyalog/ride) protocol.
 
 Connects to a running Dyalog session, executes expressions, disconnects. One file, no dependencies beyond core Perl.
@@ -13,7 +15,7 @@ without a RIDE client of any sort.
 On POSIX and POSIX-ish systems Perl is _ubiquitous_. A small review showed that
 even RHEL 9 comes with Perl 5.32, which is nice and very modern.
 
-The solution: a 2KB RIDE implementation in Perl. As Perl is guaranteed on
+The solution: a ~2.5KB RIDE implementation in Perl. As Perl is guaranteed on
 everything but Windows (WSL exists though), and the author knows Perl, it was an
 obvious choice. No installing an untrusted binary; no installation at all. One
 small script.
@@ -29,8 +31,19 @@ Default address is `localhost:4502`.
 ### Inline expressions
 
 ```sh
-ripple -e "⎕←2+2"
-ripple -e "⎕SE.Link.Create '#' '/app/src'" -e "#.Run 'Multi'"
+$ ripple -e "⎕←2+2"
+4
+$ ripple -e "⎕SE.Link.Create '#' '/app/src'" -e "#.Run 'Multi'"
+```
+
+Output is printed to stdout. Errors (including APL errors) cause a non-zero exit code:
+
+```sh
+$ ripple -e "1÷0"; echo "exit: $?"
+DOMAIN ERROR: Divide by zero
+      1÷0
+       ∧
+exit: 1
 ```
 
 ### Remote session via SSH
@@ -41,6 +54,28 @@ Just an example from how I've used it:
 ssh -L 14502:localhost:4502 user@server
 ripple -addr localhost:14502 -e "⎕←⎕WA"
 ```
+
+### From a machine without Dyalog
+
+Ripple doesn't need Dyalog installed — just network access to a RIDE port. Copy
+one file to a monitoring box, a CI runner, or a jump host and talk to Dyalog
+remotely. Non-zero exit on APL errors means ripple works as a health probe:
+
+```sh
+ripple -e "Health.Check" || alert "Dyalog down"
+```
+
+### Bootstrap a headless Dyalog
+
+Start Dyalog with RIDE, then send startup commands from a script:
+
+```sh
+RIDE_INIT=SERVE:*:4502 $DYALOG/dyalog +s -q &
+sleep 3
+ripple -e "⎕SE.Link.Create '#' '/app/src'" -e "#.Run 'Multi'"
+```
+
+Ripple disconnects. Dyalog keeps running. RIDE stays open for debugging.
 
 ## Requirements
 
@@ -56,7 +91,7 @@ on your setup.
 `ripple-min`, `ripple-packed`, etc are experiments in getting silly about
 minification - **ignore them**. I will decide how best to minify. `minify.pl` is the script used to create them.
 
-If you refuse to ignore, ripple-min.gz is nice. <800 bytes and can be piped in
+If you refuse to ignore, ripple-min.gz is nice. Under 1KB and can be piped in
 to perl (gzip is also POSIX standard):
 
 ```
