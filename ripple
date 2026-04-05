@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # ripple — Execute expressions in a Dyalog APL session via the RIDE protocol.
 # Connects, executes expressions, disconnects.
-# No dependencies beyond core Perl (IO::Socket::INET).
+# No dependencies beyond core Perl (IO::Socket::INET, JSON::PP).
 # Requires Perl 5.32+ (RHEL 9 baseline).
 #
 # Usage:
@@ -12,6 +12,8 @@
 use v5.32;
 use Getopt::Long;
 use IO::Socket::INET;
+use JSON::PP;
+my $json = JSON::PP->new->utf8(0);
 
 my $addr = 'localhost:4502';
 my @exprs;
@@ -36,7 +38,8 @@ my $sock = IO::Socket::INET->new(PeerAddr => $addr, Proto => 'tcp', Timeout => 1
 
 # RIDE framing: [4-byte BE length (includes itself)] [payload]
 sub ride_send {
-    my $data = "RIDE" . $_[0];
+    my $payload = ref $_[0] ? $json->encode($_[0]) : $_[0];
+    my $data = "RIDE" . $payload;
     print $sock pack('N', length($data) + 4) . $data;
 }
 
@@ -70,20 +73,20 @@ sub wait_for_prompt {
     }
 }
 
+# RIDE handshake
 my $msg = ride_recv();
 die "Expected SupportedProtocols=2, got: $msg" unless $msg eq 'SupportedProtocols=2';
 ride_send('SupportedProtocols=2');
 ride_send('UsingProtocol=2');
 $msg = ride_recv();
 die "Expected UsingProtocol=2, got: $msg" unless $msg eq 'UsingProtocol=2';
-ride_send('["Identify",{"apiVersion":1,"identity":1}]');
-ride_send('["Connect",{"remoteId":2}]');
+ride_send(['Identify', {apiVersion => 1, identity => 1}]);
+ride_send(['Connect', {remoteId => 2}]);
 wait_for_prompt();
 
 # Execute
 for my $expr (@exprs) {
-    (my $escaped = $expr) =~ s/[\\"]/\\$&/g;
-    ride_send("[\"Execute\",{\"text\":\"$escaped\\n\",\"trace\":0}]");
+    ride_send(['Execute', {text => "$expr\n", trace => 0}]);
     wait_for_prompt();
 }
 

@@ -27,7 +27,8 @@ everything but Windows (WSL exists though), and the author knows Perl, it was an
 obvious choice. No installing an untrusted binary; no installation at all. One
 small script.
 
-With minification, it gets to <1KB.
+With minification, it gets to <1KB. At this point it can be embedded or inlined
+in to scripts.
 
 ## Usage
 

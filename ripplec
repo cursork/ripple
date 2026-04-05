@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+# ripplec — Compile RIDE expressions into a self-contained executable script.
+# Output is a minimal Perl script with no dependencies beyond core Perl.
+#
+# Usage:
+#   ripplec [-addr host:port] -e 'expr' ... > boot.pl
+#   ripplec -e "⎕SE.Link.Create '#' '/app/src'" -e "#.Run 'Multi'" > boot.pl
+
+use v5.32;
+use Getopt::Long;
+
+my $addr = 'localhost:4502';
+my @exprs;
+
+GetOptions(
+    'addr=s' => \$addr,
+    'e=s'    => \@exprs,
+) or die "Usage: ripplec [-addr host:port] -e expr... > output.pl\n";
+
+die "No expressions\n" unless @exprs;
+
+# Quote expressions as Perl single-quoted strings
+my @quoted = map { (my $q = $_) =~ s/(['\\])/\\$1/g; "'$q'" } @exprs;
+my $expr_list = join(",\n  ", @quoted);
+
+print <<~"SCRIPT";
+    #!/usr/bin/perl
+    use IO::Socket::INET;
+    use JSON::PP;
+    my \$j=JSON::PP->new->utf8(0);
+    my \$s=IO::Socket::INET->new(PeerAddr=>'$addr',Proto=>'tcp',Timeout=>10)or die"Cannot connect to $addr: \$!";
+    sub rs{for(\@_){my \$d="RIDE".(ref \$_?\$j->encode(\$_):\$_);print \$s pack('N',length(\$d)+4).\$d}}
+    sub rr{read(\$s,my \$b,4)==4 or die"Connection closed";my \$l=unpack('N',\$b);my \$p='';while(length(\$p)<\$l-4){read(\$s,my \$c,\$l-4-length(\$p))or die"Connection closed";\$p.=\$c}\$p=~s/^RIDE//;\$p}
+    my \$err=0;
+    sub wfp{while(1){my \$m=rr();\$err=1 if \$m=~/"HadError"/;if(\$m=~/"AppendSessionOutput"/&&\$m=~/"type"\\s*:\\s*(\\d+)/&&\$1!=14){my \$tp=\$1;if(\$m=~/"result"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"/){(my \$t=\$1)=~s/\\\\(.)/\$1 eq'n'?"\\n":\$1/ge;print{\$tp==5?*STDERR:*STDOUT}\$t}}return if \$m=~/"SetPromptType"/&&\$m=~/"type"\\s*:\\s*([0-9]+)/&&\$1>0}}
+    sub x{for(\@_){rs(\$_);wfp()}}
+    sub hs{rr();rs('SupportedProtocols=2','UsingProtocol=2');rr();rs('["Identify",{"apiVersion":1,"identity":1}]')}
+    # [H]and[s]hake and e[x]ecution:
+    hs();
+    x(['Connect',{remoteId=>2}],
+      map {['Execute',{text=>"\$_\\n",trace=>0}]}
+      $expr_list);
+    close \$s;exit(\$err?1:0);
+    SCRIPT
