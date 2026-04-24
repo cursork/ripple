@@ -62,9 +62,9 @@ sub wait_for_prompt {
     while (1) {
         my $msg = ride_recv();
         $had_error = 1 if $msg =~ /"HadError"/;
-        if ($msg =~ /"AppendSessionOutput"/ && $msg =~ /"type"\s*:\s*(\d+)/ && $1 != 14) {
-            my $type = $1;
-            if ($msg =~ /"result"\s*:\s*"((?:[^"\\]|\\.)*)"/) {
+        if ($msg =~ /"AppendSessionOutput"/) {
+            my $type = ($msg =~ /"type"\s*:\s*(\d+)/) ? $1 : 0;
+            if ($type != 14 && $msg =~ /"result"\s*:\s*"((?:[^"\\]|\\.)*)"/) {
                 (my $text = $1) =~ s/\\(.)/$1 eq 'n' ? "\n" : $1/ge;
                 print {$type == 5 ? *STDERR : *STDOUT} $text;
             }
