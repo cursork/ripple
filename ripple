@@ -5,7 +5,7 @@
 # Requires Perl 5.32+ (RHEL 9 baseline).
 #
 # Usage:
-#   ripple [-addr host:port] [-e 'expr'] ...
+#   ripple [-addr host:port] [-timeout secs] [-e 'expr'] ...
 #   ripple -e "⎕←2+2"
 #   ripple -e "⎕SE.Link.Create '#' '/app/src'" -e "#.Run 'Multi'"
 
@@ -17,11 +17,13 @@ my $json = JSON::PP->new->utf8(0);
 
 my $addr = 'localhost:4502';
 my @exprs;
+my $timeout = 0;
 
 GetOptions(
-    'addr=s' => \$addr,
-    'e=s'    => \@exprs,
-) or die "Usage: ripple [-addr host:port] [-e expr]...";
+    'addr=s'    => \$addr,
+    'e=s'       => \@exprs,
+    'timeout=i' => \$timeout,
+) or die "Usage: ripple [-addr host:port] [-timeout secs] [-e expr]...";
 
 for my $file (@ARGV) {
     open my $fh, '<', $file or die "Cannot open $file: $!";
@@ -31,7 +33,12 @@ for my $file (@ARGV) {
     }
 }
 
-if (!@exprs) { die "Usage: ripple [-addr host:port] [-e expr]..." }
+if (!@exprs) { die "Usage: ripple [-addr host:port] [-timeout secs] [-e expr]..." }
+
+if ($timeout) {
+    $SIG{ALRM} = sub { say 'Timeout'; exit 2 };
+    alarm($timeout);
+}
 
 my $sock = IO::Socket::INET->new(PeerAddr => $addr, Proto => 'tcp', Timeout => 10)
     // die "Cannot connect to $addr: $!";

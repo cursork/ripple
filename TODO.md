@@ -1,5 +1,3 @@
 # TODO
 
-- `-timeout` flag for health check use cases — exit non-zero if Dyalog doesn't respond in time
-- Decide on the right approach for the file input feature (currently undocumented and untrusted)
-- ripplec duplicates ripple's RIDE boilerplate — they should share code
+- Decide on the right approach for the file input feature — multi-line APL constructs (dfns, tradfns) don't survive line-by-line execution via RIDE

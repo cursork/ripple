@@ -27,7 +27,7 @@ in to scripts.
 ## Usage
 
 ```
-ripple [-addr host:port] [-e 'expr'] ...
+ripple [-addr host:port] [-timeout secs] [-e 'expr'] ...
 ```
 
 Default address is `localhost:4502`.
@@ -63,10 +63,11 @@ ripple -addr localhost:14502 -e "⎕←⎕WA"
 
 Ripple doesn't need Dyalog installed — just network access to a RIDE port. Copy
 one file to a monitoring box, a CI runner, or a jump host and talk to Dyalog
-remotely. Non-zero exit on APL errors means ripple works as a health probe:
+remotely. Non-zero exit on APL errors means ripple works as a health probe.
+`-timeout` adds a hard deadline (exit code 2 on timeout, vs 1 for APL errors):
 
 ```sh
-ripple -e "Health.Check" || alert "Dyalog down"
+ripple -timeout 5 -e "Health.Check" || alert "Dyalog down"
 ```
 
 ### Bootstrap a headless Dyalog
@@ -97,7 +98,7 @@ Yes. This works. I am not sorry.
 ## Requirements
 
 Perl 5.32+ (ships with RHEL 9, Debian 11, Ubuntu 22.04, and anything newer).
-Uses only `IO::Socket::INET` from core.
+Uses only core modules (`IO::Socket::INET`, `JSON::PP`, `Getopt::Long`).
 
 ## Install
 
