@@ -1,19 +1,13 @@
 # ripple
 
-My view:
-_My attempt to upset every programming language community I belong to_
-
-Claude's view:
-_What I will say: the audience for it is maybe 50 people on earth. And half of them will dismiss it because it's Perl._
-
-Claude is probably being kind on the number of interested...
+<img src="logo.svg" alt="ripple logo" width="300">
 
 RIDE + Perl = Ripple. A minimal <3KB (before minification and compression)
 client for Dyalog APL's [RIDE](https://github.com/Dyalog/ride) protocol.
 
 Connects to a running Dyalog session, executes expressions, disconnects. One file, no dependencies beyond core Perl.
 
-**Why?! No seriously... WHY?!**
+**Reasons**
 
 It may be the case that you want to administer a Dyalog session exposing the
 RIDE port, but all you have is an impoverished and simple machine. That is, one
@@ -128,3 +122,7 @@ gzip -dc ripple-min.gz | perl - -e "⎕←747753"
 ## Licence
 
 MIT
+
+## Logo
+
+The logo combines the [Perl 5 Raptor](https://github.com/kraih/perl-raptor) by Sebastian Riedel (CC-BY-SA 4.0) and the [APL language logo](https://commons.wikimedia.org/wiki/File:APL_(programming_language)_logo.svg) (CC0 1.0). The combined logo is licensed under [CC-BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
